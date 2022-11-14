@@ -1,100 +1,74 @@
-# [GitHub Desktop](https://desktop.github.com)
+# Conveyorized version of [GitHub Desktop](https://desktop.github.com)
 
-[GitHub Desktop](https://desktop.github.com/) is an open source [Electron](https://www.electronjs.org/)-based
-GitHub app. It is written in [TypeScript](https://www.typescriptlang.org) and
-uses [React](https://reactjs.org/).
+This repository shows how to package a complex real world Electron app with [Conveyor](https://hydraulic.software/). It features:
 
-![GitHub Desktop screenshot - Windows](https://cloud.githubusercontent.com/assets/359239/26094502/a1f56d02-3a5d-11e7-8799-23c7ba5e5106.png)
+- Automatic online updates, checked at each launch.
+- Files released via GitHub Releases.
+- The [generated download page](https://hydraulic-software.github.io/github-desktop/download.html) being hosted by GitHub pages.
 
-## Where can I get it?
+Conveyor is a tool that makes distributing desktop apps easier. It builds, signs and notarizes self-updating
+packages for you and offers many useful features, like cross-building/signing of packages, different update modes (silent/background and
+update-at-launch), and [much more](https://conveyor.hydraulic.dev/).
 
-Download the official installer for your operating system:
+## Packaging
 
- - [macOS](https://central.github.com/deployments/desktop/desktop/latest/darwin)
- - [macOS (Apple silicon)](https://central.github.com/deployments/desktop/desktop/latest/darwin-arm64)
- - [Windows](https://central.github.com/deployments/desktop/desktop/latest/win32)
- - [Windows machine-wide install](https://central.github.com/deployments/desktop/desktop/latest/win32?format=msi)
+There are three parts. Let's look at them in turn.
 
-You can install this alongside your existing GitHub Desktop for Mac or GitHub
-Desktop for Windows application.
+Open [conveyor.conf](conveyor.conf) where there are extensive comments. The package can be built by installing Conveyor and 
+then running:
 
-Linux is not officially supported; however, you can find installers created for Linux from a fork of GitHub Desktop in the [Community Releases](https://github.com/desktop/desktop#community-releases) section.
+```
+conveyor make site
+```
 
-**NOTE**: There is no current migration path to import your existing
-repositories into the new application - you can drag-and-drop your repositories
-from disk onto the application to get started.
+The output directory will now contain packages for Windows, Mac Intel and Mac ARM along with update repository metadata and a generated
+download page.
 
+The `conveyor.conf` file imports the raw files to package from the output of a [GitHub Actions CI job](.github/workflows/ci.yml). This is
+useful because even though GH Desktop is written in TypeScript the build system picks different node.js extensions and produces 
+customized JS bundles depending on what OS you build it on. Conveyor can make packages for all supported OS' from whatever you choose to
+run it on, and it would be possible to extend the GH Desktop build system to support the same feature to allow arbitrary cross-builds.
 
-### Beta Channel
+## Releasing
 
-Want to test out new features and get fixes before everyone else? Install the
-beta channel to get access to early builds of Desktop:
+To do a release: 
 
- - [macOS](https://central.github.com/deployments/desktop/desktop/latest/darwin?env=beta)
- - [macOS (Apple silicon)](https://central.github.com/deployments/desktop/desktop/latest/darwin-arm64?env=beta)
- - [Windows](https://central.github.com/deployments/desktop/desktop/latest/win32?env=beta)
- - [Windows (ARM64)](https://central.github.com/deployments/desktop/desktop/latest/win32-arm64?env=beta)
+* Run `conveyor make site --rerun=all`.
+* Put the output files into a new GitHub release, except for the `download.html`.
+* Put `download.html` into the `docs` subdirectory, commit and push.
 
-The release notes for the latest beta versions are available [here](https://desktop.github.com/release-notes/?env=beta).
+## Packaging features used
 
-### Community Releases
+This repo demos:
 
-There are several community-supported package managers that can be used to
-install GitHub Desktop:
- - Windows users can install using [winget](https://docs.microsoft.com/en-us/windows/package-manager/winget/) `c:/> winget install github-desktop` or [Chocolatey](https://chocolatey.org/) `c:\> choco install github-desktop`
- - macOS users can install using [Homebrew](https://brew.sh/) package manager:
-      `$ brew install --cask github`
+1. Importing `package.json` files to avoid redundant configuration.
+2. Downloading the results of GitHub Actions.
+3. Setting which operating systems and CPU architectures are supported.
+4. [Aggressive updates](https://conveyor.hydraulic.dev/5.0/configs/#update-modes), which makes these packages check for new versions on every launch. Try downloading the old Mac release and then
+   running it to see the update in action (on Windows the installer EXE will always install the latest version).
+5. [Registering URL schemes](https://conveyor.hydraulic.dev/5.0/configs/os-integration/#url-handlers-deep-linking) for OAuth logins.
+6. Setting [custom metadata and entitlements](https://conveyor.hydraulic.dev/5.0/configs/os-integration/#custom-integrations) for Mac apps.
 
-Installers for various Linux distributions can be found on the
-[`shiftkey/desktop`](https://github.com/shiftkey/desktop) fork.
+These packages are code-signed but you can create self-signed projects if you want.
 
-Arch Linux users can install the latest version from the
-[AUR](https://aur.archlinux.org/packages/github-desktop-bin/).
+## Comparison to other tools
 
-## Is GitHub Desktop right for me? What are the primary areas of focus?
+You can compare the config against the code needed to use other Electron packaging tools by reading the [script/build.ts] and [script/package.ts] files.
+The `packageApp()` function in `build.ts` and everything reachable from it could be deleted, along with the whole of `package.ts`. You could
+also delete all the code that sets up and instantiates the update manager, because Conveyor doesn't require you to do anything to initialize
+the update system.
 
-[This document](https://github.com/desktop/desktop/blob/development/docs/process/what-is-desktop.md) describes the focus of GitHub Desktop and who the product is most useful for.
+There are some feature differences vs apps packaged using Electron Forge/Squirrel. On Windows:
 
-And to see what the team is working on currently and in the near future, check out the [GitHub Desktop roadmap](https://github.com/desktop/desktop/blob/development/docs/process/roadmap.md).
+* Your app will update itself in the background even when not in use, using the same background transfer service Windows Update
+  uses. As a consequence your app will be always up-to-date even if only used rarely.
+* There is no .NET dependency.
+* Enterprise rollouts are easier:
+  * You don't need to do anything special for IT departments. The MSIX file Conveyor creates is sufficient to give them a good experience. 
+  * Your app doesn't install itself to the user's home directory, which can cause problems with profile roaming on managed networks.
+* Fractional rollouts aren't currently supported. You can have a beta channel though just by creating two different sites.
 
-## I have a problem with GitHub Desktop
-
-Note: The [GitHub Desktop Code of Conduct](https://github.com/desktop/desktop/blob/development/CODE_OF_CONDUCT.md) applies in all interactions relating to the GitHub Desktop project.
-
-First, please search the [open issues](https://github.com/desktop/desktop/issues?q=is%3Aopen)
-and [closed issues](https://github.com/desktop/desktop/issues?q=is%3Aclosed)
-to see if your issue hasn't already been reported (it may also be fixed).
-
-There is also a list of [known issues](https://github.com/desktop/desktop/blob/development/docs/known-issues.md)
-that are being tracked against Desktop, and some of these issues have workarounds.
-
-If you can't find an issue that matches what you're seeing, open a [new issue](https://github.com/desktop/desktop/issues/new/choose),
-choose the right template and provide us with enough information to investigate
-further.
-
-## The issue I reported isn't fixed yet. What can I do?
-
-If nobody has responded to your issue in a few days, you're welcome to respond to it with a friendly ping in the issue. Please do not respond more than a second time if nobody has responded. The GitHub Desktop maintainers are constrained in time and resources, and diagnosing individual configurations can be difficult and time consuming. While we'll try to at least get you pointed in the right direction, we can't guarantee we'll be able to dig too deeply into any one person's issue.
-
-## How can I contribute to GitHub Desktop?
-
-The [CONTRIBUTING.md](./.github/CONTRIBUTING.md) document will help you get setup and
-familiar with the source. The [documentation](docs/) folder also contains more
-resources relevant to the project.
-
-If you're looking for something to work on, check out the [help wanted](https://github.com/desktop/desktop/issues?q=is%3Aissue+is%3Aopen+label%3A%22help%20wanted%22) label.
-
-## Building Desktop
-
-To get your development environment set up for building Desktop, see [setup.md](./docs/contributing/setup.md).
-
-## More Resources
-
-See [desktop.github.com](https://desktop.github.com) for more product-oriented
-information about GitHub Desktop.
-
-
-See our [getting started documentation](https://docs.github.com/en/desktop/installing-and-configuring-github-desktop/overview/getting-started-with-github-desktop) for more information on how to set up, authenticate, and configure GitHub Desktop.
+On macOS the [Sparkle 2 framework](https://sparkle-project.org/) is used instead of Squirrel.Mac.
 
 ## License
 

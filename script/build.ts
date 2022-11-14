@@ -89,7 +89,7 @@ if (isGitHubActions() && process.platform === 'darwin' && isPublishableBuild) {
   cp.execSync(path.join(__dirname, 'setup-macos-keychain'))
 }
 
-verifyInjectedSassVariables(outRoot)
+const outRootPopulated = verifyInjectedSassVariables(outRoot)
   .catch(err => {
     console.error(
       'Error verifying the Sass variables in the rendered app. This is fatal for a published build.'
@@ -112,17 +112,20 @@ verifyInjectedSassVariables(outRoot)
       }
     })
   })
-  .then(() => {
+
+if (process.env.SKIP_ELECTRON_PACKAGER === undefined) {
+  outRootPopulated.then(() => {
     console.log('Packaging…')
     return packageApp()
   })
-  .catch(err => {
-    console.error(err)
-    process.exit(1)
-  })
-  .then(appPaths => {
-    console.log(`Built to ${appPaths}`)
-  })
+      .catch(err => {
+        console.error(err)
+        process.exit(1)
+      })
+      .then(appPaths => {
+        console.log(`Built to ${appPaths}`)
+      })
+}
 
 /**
  * The additional packager options not included in the existing typing.

@@ -1,4 +1,5 @@
 out/
+out-*/
 dist/
 node_modules/
 coverage/
@@ -16,3 +17,4 @@ app/node_modules/
 junit*.xml
 *.swp
 tslint-rules/
+output

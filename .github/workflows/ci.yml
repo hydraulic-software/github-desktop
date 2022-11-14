@@ -3,8 +3,7 @@ name: CI
 on:
   push:
     branches:
-      - development
-      - __release-*
+      - conveyorize
   pull_request:
 
 jobs:
@@ -57,42 +56,31 @@ jobs:
         env:
           npm_config_arch: ${{ matrix.arch }}
           TARGET_ARCH: ${{ matrix.arch }}
-      - name: Lint
-        run: yarn lint
       - name: Validate changelog
         run: yarn validate-changelog
       - name: Ensure a clean working directory
         run: git diff --name-status --exit-code
-      - name: Build production app
+
+      # This will place a prepared app directory with native files and OS-specific JS in out/
+      - name: Create app files
         run: yarn build:prod
         env:
-          DESKTOP_OAUTH_CLIENT_ID: ${{ secrets.DESKTOP_OAUTH_CLIENT_ID }}
-          DESKTOP_OAUTH_CLIENT_SECRET:
-            ${{ secrets.DESKTOP_OAUTH_CLIENT_SECRET }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
-          DESKTOPBOT_TOKEN: ${{ secrets.DESKTOPBOT_TOKEN }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-          npm_config_arch: ${{ matrix.arch }}
-          TARGET_ARCH: ${{ matrix.arch }}
-      - name: Prepare testing environment
-        if: matrix.arch == 'x64'
-        run: yarn test:setup
-      - name: Run unit tests
-        if: matrix.arch == 'x64'
-        run: yarn test:unit
-      - name: Run script tests
-        if: matrix.arch == 'x64'
-        run: yarn test:script
-      - name: Publish production app
-        run: yarn run publish
-        env:
-          npm_config_arch: ${{ matrix.arch }}
-          DESKTOPBOT_TOKEN: ${{ secrets.DESKTOPBOT_TOKEN }}
-          WINDOWS_CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-          DEPLOYMENT_SECRET: ${{ secrets.DEPLOYMENT_SECRET }}
-          AZURE_STORAGE_ACCOUNT: ${{ secrets.AZURE_STORAGE_ACCOUNT }}
-          AZURE_STORAGE_ACCESS_KEY: ${{ secrets.AZURE_STORAGE_ACCESS_KEY }}
-          AZURE_BLOB_CONTAINER: ${{ secrets.AZURE_BLOB_CONTAINER }}
-          AZURE_STORAGE_URL: ${{ secrets.AZURE_STORAGE_URL }}
+          SKIP_ELECTRON_PACKAGER: true
+
+      - name: Tarball of the results
+        if: ${{ matrix.os != 'windows-2019' }}
+        run: tar czvf build-out-${{ matrix.os }}-${{ matrix.arch }}.tar out
+
+      - name: Create artifact from Mac output
+        if: ${{ matrix.os != 'windows-2019' }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-out-${{ matrix.friendlyName }}-${{ matrix.arch }}
+          path: build-out-${{ matrix.os }}-${{ matrix.arch }}.tar
+
+      - name: Create artifact from Windows output
+        if: ${{ matrix.os == 'windows-2019' }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-out-${{ matrix.friendlyName }}-${{ matrix.arch }}
+          path: out
