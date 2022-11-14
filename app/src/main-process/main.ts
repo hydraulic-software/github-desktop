@@ -94,15 +94,9 @@ function getExtraErrorContext(): Record<string, string> {
   }
 }
 
-/** Extra argument for the protocol launcher on Windows */
-const protocolLauncherArg = '--protocol-launcher'
-
 const possibleProtocols = new Set(['x-github-client'])
-if (__DEV__) {
-  possibleProtocols.add('x-github-desktop-dev-auth')
-} else {
-  possibleProtocols.add('x-github-desktop-auth')
-}
+possibleProtocols.add('x-github-desktop-dev-auth')
+possibleProtocols.add('x-github-desktop-auth')
 // Also support Desktop Classic's protocols.
 if (__DARWIN__) {
   possibleProtocols.add('github-mac')
@@ -110,10 +104,12 @@ if (__DARWIN__) {
   possibleProtocols.add('github-windows')
 }
 
-// On Windows, in order to get notifications properly working for dev builds,
-// we'll want to set the right App User Model ID from production builds.
-if (__WIN32__ && __DEV__) {
-  app.setAppUserModelId('com.squirrel.GitHubDesktop.GitHubDesktop')
+// We have to inform Electron of our package ID (== "app user model ID") as otherwise notifications won't work correctly.
+// Package/AUMIDs can be discovered with the Get-StartApps powershell cmdlet. When packaged as MSIX using Conveyor the
+// package ID is the name of the app combined with a text-encoded hash of the X.509 signing certificate subject name.
+// It is therefore stable as long as the package is always signed with the same identity (doesn't have to be the same key).
+if (__WIN32__) {
+  app.setAppUserModelId('GithubDesktop_fg3qp2cw01ypp!GithubDesktop')
 }
 
 app.on('window-all-closed', () => {
@@ -244,9 +240,7 @@ function handlePossibleProtocolLauncherArgs(args: ReadonlyArray<string>) {
   log.info(`Received possible protocol arguments: ${args.length}`)
 
   if (__WIN32__) {
-    // Desktop registers it's protocol handler callback on Windows as
-    // `[executable path] --protocol-launcher "%1"`. Note that extra command
-    // line arguments might be added by Chromium
+    // Note that extra command line arguments might be added by Chromium
     // (https://electronjs.org/docs/api/app#event-second-instance).
     // At launch Desktop checks for that exact scenario here before doing any
     // processing. If there's more than one matching url argument because of a
@@ -264,7 +258,7 @@ function handlePossibleProtocolLauncherArgs(args: ReadonlyArray<string>) {
       }
     })
 
-    if (args.includes(protocolLauncherArg) && matchingUrls.length === 1) {
+    if (matchingUrls.length === 1) {
       handleAppURL(matchingUrls[0])
     } else {
       log.error(`Malformed launch arguments received: ${args}`)
@@ -274,18 +268,8 @@ function handlePossibleProtocolLauncherArgs(args: ReadonlyArray<string>) {
   }
 }
 
-/**
- * Wrapper around app.setAsDefaultProtocolClient that adds our
- * custom prefix command line switches on Windows.
- */
 function setAsDefaultProtocolClient(protocol: string) {
-  if (__WIN32__) {
-    app.setAsDefaultProtocolClient(protocol, process.execPath, [
-      protocolLauncherArg,
-    ])
-  } else {
-    app.setAsDefaultProtocolClient(protocol)
-  }
+  // Unnecessary when packaged with Conveyor: URL handling is always declarative in package metadata.
 }
 
 if (process.env.GITHUB_DESKTOP_DISABLE_HARDWARE_ACCELERATION) {
