@@ -51,7 +51,7 @@ val siteFiles = cd("output") {
         repo
             .createRelease(githubReleaseVersion)
             .name(githubReleaseVersion)
-            .body("A demo release using Conveyor (version $githubReleaseVersion). Please use the [download page](https://downloads.hydraulic.dev/github-desktop/download.html).")
+            .body("A demo release using Conveyor (version $githubReleaseVersion). Please use the [download page](https://hydraulic-software.github.io/github-desktop/download.html).")
             .create()
     } catch (e: GHFileNotFoundException) {
         throw UserError("Your personal access token needs to have 'repo' scope.")
