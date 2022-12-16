@@ -79,6 +79,8 @@ val siteFiles = cd("output") {
 }
 
 check(siteFiles.isNotEmpty())
-for (f in siteFiles)
+for (f in siteFiles) {
     cp(f, "docs")
-"git commit -a -m 'Update download site' docs"()
+    "git add docs/${f.fileName}"()
+}
+"git commit -a -m 'Update download site to $githubReleaseVersion'"()
