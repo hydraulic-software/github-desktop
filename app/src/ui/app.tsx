@@ -1,178 +1,138 @@
 import * as React from 'react'
-import { TransitionGroup, CSSTransition } from 'react-transition-group'
-import {
-  IAppState,
-  RepositorySectionTab,
-  FoldoutType,
-  SelectionType,
-  HistoryTabMode,
-} from '../lib/app-state'
-import { defaultErrorHandler, Dispatcher } from './dispatcher'
-import { AppStore, GitHubUserStore, IssuesStore } from '../lib/stores'
-import { assertNever } from '../lib/fatal-error'
-import { shell } from '../lib/app-shell'
-import { updateStore, UpdateStatus } from './lib/update-store'
-import { RetryAction } from '../models/retry-actions'
-import { FetchType } from '../models/fetch'
-import { shouldRenderApplicationMenu } from './lib/features'
-import { matchExistingRepository } from '../lib/repository-matching'
-import { getDotComAPIEndpoint } from '../lib/api'
-import { getVersion, getName } from './lib/app-proxy'
-import { getOS } from '../lib/get-os'
-import { MenuEvent } from '../main-process/menu'
-import {
-  Repository,
-  getGitHubHtmlUrl,
-  getNonForkGitHubRepository,
-  isRepositoryWithGitHubRepository,
-} from '../models/repository'
-import { Branch } from '../models/branch'
-import { PreferencesTab } from '../models/preferences'
-import { findItemByAccessKey, itemIsSelectable } from '../models/app-menu'
-import { Account } from '../models/account'
-import { TipState } from '../models/tip'
-import { CloneRepositoryTab } from '../models/clone-repository-tab'
-import { CloningRepository } from '../models/cloning-repository'
+import {CSSTransition, TransitionGroup} from 'react-transition-group'
+import {FoldoutType, HistoryTabMode, IAppState, RepositorySectionTab, SelectionType,} from '../lib/app-state'
+import {defaultErrorHandler, Dispatcher} from './dispatcher'
+import {AppStore, GitHubUserStore, IssuesStore} from '../lib/stores'
+import {assertNever} from '../lib/fatal-error'
+import {shell} from '../lib/app-shell'
+import {RetryAction} from '../models/retry-actions'
+import {FetchType} from '../models/fetch'
+import {shouldRenderApplicationMenu} from './lib/features'
+import {matchExistingRepository} from '../lib/repository-matching'
+import {getDotComAPIEndpoint} from '../lib/api'
+import {getName, getVersion} from './lib/app-proxy'
+import {getOS} from '../lib/get-os'
+import {MenuEvent} from '../main-process/menu'
+import {getGitHubHtmlUrl, getNonForkGitHubRepository, isRepositoryWithGitHubRepository, Repository,} from '../models/repository'
+import {Branch} from '../models/branch'
+import {PreferencesTab} from '../models/preferences'
+import {findItemByAccessKey, itemIsSelectable} from '../models/app-menu'
+import {Account} from '../models/account'
+import {TipState} from '../models/tip'
+import {CloneRepositoryTab} from '../models/clone-repository-tab'
+import {CloningRepository} from '../models/cloning-repository'
 
-import { TitleBar, ZoomInfo, FullScreenInfo } from './window'
+import {FullScreenInfo, TitleBar, ZoomInfo} from './window'
 
-import { RepositoriesList } from './repositories-list'
-import { RepositoryView } from './repository'
-import { RenameBranch } from './rename-branch'
-import { DeleteBranch, DeleteRemoteBranch } from './delete-branch'
-import { CloningRepositoryView } from './cloning-repository'
-import {
-  Toolbar,
-  ToolbarDropdown,
-  DropdownState,
-  PushPullButton,
-  BranchDropdown,
-  RevertProgress,
-} from './toolbar'
-import { iconForRepository, OcticonSymbolType } from './octicons'
+import {RepositoriesList} from './repositories-list'
+import {RepositoryView} from './repository'
+import {RenameBranch} from './rename-branch'
+import {DeleteBranch, DeleteRemoteBranch} from './delete-branch'
+import {CloningRepositoryView} from './cloning-repository'
+import {BranchDropdown, DropdownState, PushPullButton, RevertProgress, Toolbar, ToolbarDropdown,} from './toolbar'
+import {iconForRepository, OcticonSymbolType} from './octicons'
 import * as OcticonSymbol from './octicons/octicons.generated'
-import {
-  showCertificateTrustDialog,
-  sendReady,
-  isInApplicationFolder,
-  selectAllWindowContents,
-} from './main-process-proxy'
-import { DiscardChanges } from './discard-changes'
-import { Welcome } from './welcome'
-import { AppMenuBar } from './app-menu'
-import { UpdateAvailable, renderBanner } from './banners'
-import { Preferences } from './preferences'
-import { RepositorySettings } from './repository-settings'
-import { AppError } from './app-error'
-import { MissingRepository } from './missing-repository'
-import { AddExistingRepository, CreateRepository } from './add-repository'
-import { CloneRepository } from './clone-repository'
-import { CreateBranch } from './create-branch'
-import { SignIn } from './sign-in'
-import { InstallGit } from './install-git'
-import { EditorError } from './editor'
-import { About } from './about'
-import { Publish } from './publish-repository'
-import { Acknowledgements } from './acknowledgements'
-import { UntrustedCertificate } from './untrusted-certificate'
-import { NoRepositoriesView } from './no-repositories'
-import { ConfirmRemoveRepository } from './remove-repository'
-import { TermsAndConditions } from './terms-and-conditions'
-import { PushBranchCommits } from './branches'
-import { CLIInstalled } from './cli-installed'
-import { GenericGitAuthentication } from './generic-git-auth'
-import { ShellError } from './shell'
-import { InitializeLFS, AttributeMismatch } from './lfs'
-import { UpstreamAlreadyExists } from './upstream-already-exists'
-import { ReleaseNotes } from './release-notes'
-import { DeletePullRequest } from './delete-branch/delete-pull-request-dialog'
-import { CommitConflictsWarning } from './merge-conflicts'
-import { AppTheme } from './app-theme'
-import { ApplicationTheme } from './lib/application-theme'
-import { RepositoryStateCache } from '../lib/stores/repository-state-cache'
-import { PopupType, Popup } from '../models/popup'
-import { OversizedFiles } from './changes/oversized-files-warning'
-import { PushNeedsPullWarning } from './push-needs-pull'
-import {
-  ForcePushBranchState,
-  getCurrentBranchForcePushState,
-} from '../lib/rebase'
-import { Banner, BannerType } from '../models/banner'
-import { StashAndSwitchBranch } from './stash-changes/stash-and-switch-branch-dialog'
-import { OverwriteStash } from './stash-changes/overwrite-stashed-changes-dialog'
-import { ConfirmDiscardStashDialog } from './stashing/confirm-discard-stash'
-import { CreateTutorialRepositoryDialog } from './no-repositories/create-tutorial-repository-dialog'
-import { ConfirmExitTutorial } from './tutorial'
-import { TutorialStep, isValidTutorialStep } from '../models/tutorial-step'
-import { WorkflowPushRejectedDialog } from './workflow-push-rejected/workflow-push-rejected'
-import { SAMLReauthRequiredDialog } from './saml-reauth-required/saml-reauth-required'
-import { CreateForkDialog } from './forks/create-fork-dialog'
-import { findContributionTargetDefaultBranch } from '../lib/branch'
-import {
-  GitHubRepository,
-  hasWritePermission,
-} from '../models/github-repository'
-import { CreateTag } from './create-tag'
-import { DeleteTag } from './delete-tag'
-import { ChooseForkSettings } from './choose-fork-settings'
-import { DiscardSelection } from './discard-changes/discard-selection-dialog'
-import { LocalChangesOverwrittenDialog } from './local-changes-overwritten/local-changes-overwritten-dialog'
+import {isInApplicationFolder, selectAllWindowContents, sendReady, showCertificateTrustDialog,} from './main-process-proxy'
+import {DiscardChanges} from './discard-changes'
+import {Welcome} from './welcome'
+import {AppMenuBar} from './app-menu'
+import {renderBanner} from './banners'
+import {Preferences} from './preferences'
+import {RepositorySettings} from './repository-settings'
+import {AppError} from './app-error'
+import {MissingRepository} from './missing-repository'
+import {AddExistingRepository, CreateRepository} from './add-repository'
+import {CloneRepository} from './clone-repository'
+import {CreateBranch} from './create-branch'
+import {SignIn} from './sign-in'
+import {InstallGit} from './install-git'
+import {EditorError} from './editor'
+import {About} from './about'
+import {Publish} from './publish-repository'
+import {Acknowledgements} from './acknowledgements'
+import {UntrustedCertificate} from './untrusted-certificate'
+import {NoRepositoriesView} from './no-repositories'
+import {ConfirmRemoveRepository} from './remove-repository'
+import {TermsAndConditions} from './terms-and-conditions'
+import {PushBranchCommits} from './branches'
+import {CLIInstalled} from './cli-installed'
+import {GenericGitAuthentication} from './generic-git-auth'
+import {ShellError} from './shell'
+import {AttributeMismatch, InitializeLFS} from './lfs'
+import {UpstreamAlreadyExists} from './upstream-already-exists'
+import {ReleaseNotes} from './release-notes'
+import {DeletePullRequest} from './delete-branch/delete-pull-request-dialog'
+import {CommitConflictsWarning} from './merge-conflicts'
+import {AppTheme} from './app-theme'
+import {ApplicationTheme} from './lib/application-theme'
+import {RepositoryStateCache} from '../lib/stores/repository-state-cache'
+import {Popup, PopupType} from '../models/popup'
+import {OversizedFiles} from './changes/oversized-files-warning'
+import {PushNeedsPullWarning} from './push-needs-pull'
+import {ForcePushBranchState, getCurrentBranchForcePushState,} from '../lib/rebase'
+import {Banner, BannerType} from '../models/banner'
+import {StashAndSwitchBranch} from './stash-changes/stash-and-switch-branch-dialog'
+import {OverwriteStash} from './stash-changes/overwrite-stashed-changes-dialog'
+import {ConfirmDiscardStashDialog} from './stashing/confirm-discard-stash'
+import {CreateTutorialRepositoryDialog} from './no-repositories/create-tutorial-repository-dialog'
+import {ConfirmExitTutorial} from './tutorial'
+import {isValidTutorialStep, TutorialStep} from '../models/tutorial-step'
+import {WorkflowPushRejectedDialog} from './workflow-push-rejected/workflow-push-rejected'
+import {SAMLReauthRequiredDialog} from './saml-reauth-required/saml-reauth-required'
+import {CreateForkDialog} from './forks/create-fork-dialog'
+import {findContributionTargetDefaultBranch} from '../lib/branch'
+import {GitHubRepository, hasWritePermission,} from '../models/github-repository'
+import {CreateTag} from './create-tag'
+import {DeleteTag} from './delete-tag'
+import {ChooseForkSettings} from './choose-fork-settings'
+import {DiscardSelection} from './discard-changes/discard-selection-dialog'
+import {LocalChangesOverwrittenDialog} from './local-changes-overwritten/local-changes-overwritten-dialog'
 import memoizeOne from 'memoize-one'
-import { AheadBehindStore } from '../lib/stores/ahead-behind-store'
-import { getAccountForRepository } from '../lib/get-account-for-repository'
-import { CommitOneLine } from '../models/commit'
-import { CommitDragElement } from './drag-elements/commit-drag-element'
+import {AheadBehindStore} from '../lib/stores/ahead-behind-store'
+import {getAccountForRepository} from '../lib/get-account-for-repository'
+import {CommitOneLine} from '../models/commit'
+import {CommitDragElement} from './drag-elements/commit-drag-element'
 import classNames from 'classnames'
-import { MoveToApplicationsFolder } from './move-to-applications-folder'
-import { ChangeRepositoryAlias } from './change-repository-alias/change-repository-alias-dialog'
-import { ThankYou } from './thank-you'
-import {
-  getUserContributions,
-  hasUserAlreadyBeenCheckedOrThanked,
-  updateLastThankYou,
-} from '../lib/thank-you'
-import { ReleaseNote } from '../models/release-notes'
-import { CommitMessageDialog } from './commit-message/commit-message-dialog'
-import { buildAutocompletionProviders } from './autocompletion'
-import { DragType, DropTargetSelector } from '../models/drag-drop'
-import { dragAndDropManager } from '../lib/drag-and-drop-manager'
-import { MultiCommitOperation } from './multi-commit-operation/multi-commit-operation'
-import { WarnLocalChangesBeforeUndo } from './undo/warn-local-changes-before-undo'
-import { WarningBeforeReset } from './reset/warning-before-reset'
-import { InvalidatedToken } from './invalidated-token/invalidated-token'
-import { MultiCommitOperationKind } from '../models/multi-commit-operation'
-import { AddSSHHost } from './ssh/add-ssh-host'
-import { SSHKeyPassphrase } from './ssh/ssh-key-passphrase'
-import { getMultiCommitOperationChooseBranchStep } from '../lib/multi-commit-operation'
-import { ConfirmForcePush } from './rebase/confirm-force-push'
-import { PullRequestChecksFailed } from './notifications/pull-request-checks-failed'
-import { CICheckRunRerunDialog } from './check-runs/ci-check-run-rerun-dialog'
-import { WarnForcePushDialog } from './multi-commit-operation/dialog/warn-force-push-dialog'
-import { clamp } from '../lib/clamp'
-import { generateRepositoryListContextMenu } from './repositories-list/repository-list-item-context-menu'
+import {MoveToApplicationsFolder} from './move-to-applications-folder'
+import {ChangeRepositoryAlias} from './change-repository-alias/change-repository-alias-dialog'
+import {ThankYou} from './thank-you'
+import {getUserContributions, hasUserAlreadyBeenCheckedOrThanked, updateLastThankYou,} from '../lib/thank-you'
+import {ReleaseNote} from '../models/release-notes'
+import {CommitMessageDialog} from './commit-message/commit-message-dialog'
+import {buildAutocompletionProviders} from './autocompletion'
+import {DragType, DropTargetSelector} from '../models/drag-drop'
+import {dragAndDropManager} from '../lib/drag-and-drop-manager'
+import {MultiCommitOperation} from './multi-commit-operation/multi-commit-operation'
+import {WarnLocalChangesBeforeUndo} from './undo/warn-local-changes-before-undo'
+import {WarningBeforeReset} from './reset/warning-before-reset'
+import {InvalidatedToken} from './invalidated-token/invalidated-token'
+import {MultiCommitOperationKind} from '../models/multi-commit-operation'
+import {AddSSHHost} from './ssh/add-ssh-host'
+import {SSHKeyPassphrase} from './ssh/ssh-key-passphrase'
+import {getMultiCommitOperationChooseBranchStep} from '../lib/multi-commit-operation'
+import {ConfirmForcePush} from './rebase/confirm-force-push'
+import {PullRequestChecksFailed} from './notifications/pull-request-checks-failed'
+import {CICheckRunRerunDialog} from './check-runs/ci-check-run-rerun-dialog'
+import {WarnForcePushDialog} from './multi-commit-operation/dialog/warn-force-push-dialog'
+import {clamp} from '../lib/clamp'
+import {generateRepositoryListContextMenu} from './repositories-list/repository-list-item-context-menu'
 import * as ipcRenderer from '../lib/ipc-renderer'
-import { showNotification } from '../lib/notifications/show-notification'
-import { DiscardChangesRetryDialog } from './discard-changes/discard-changes-retry-dialog'
-import { generateDevReleaseSummary } from '../lib/release-notes'
-import { PullRequestReview } from './notifications/pull-request-review'
-import { getPullRequestCommitRef } from '../models/pull-request'
-import { getRepositoryType } from '../lib/git'
-import { SSHUserPassword } from './ssh/ssh-user-password'
-import { showContextualMenu } from '../lib/menu-item'
-import { UnreachableCommitsDialog } from './history/unreachable-commits-dialog'
-import { OpenPullRequestDialog } from './open-pull-request/open-pull-request-dialog'
-import { sendNonFatalException } from '../lib/helpers/non-fatal-exception'
-import { createCommitURL } from '../lib/commit-url'
-import { uuid } from '../lib/uuid'
-import { InstallingUpdate } from './installing-update/installing-update'
+import {showNotification} from '../lib/notifications/show-notification'
+import {DiscardChangesRetryDialog} from './discard-changes/discard-changes-retry-dialog'
+import {generateDevReleaseSummary} from '../lib/release-notes'
+import {PullRequestReview} from './notifications/pull-request-review'
+import {getPullRequestCommitRef} from '../models/pull-request'
+import {getRepositoryType} from '../lib/git'
+import {SSHUserPassword} from './ssh/ssh-user-password'
+import {showContextualMenu} from '../lib/menu-item'
+import {UnreachableCommitsDialog} from './history/unreachable-commits-dialog'
+import {OpenPullRequestDialog} from './open-pull-request/open-pull-request-dialog'
+import {sendNonFatalException} from '../lib/helpers/non-fatal-exception'
+import {createCommitURL} from '../lib/commit-url'
+import {uuid} from '../lib/uuid'
 
 const MinuteInMilliseconds = 1000 * 60
 const HourInMilliseconds = MinuteInMilliseconds * 60
-
-/**
- * Check for updates every 4 hours
- */
-const UpdateCheckInterval = 4 * HourInMilliseconds
 
 /**
  * Send usage stats every 4 hours
@@ -264,37 +224,6 @@ export class App extends React.Component<IAppProps, IAppState> {
 
     ipcRenderer.on('menu-event', (_, name) => this.onMenuEvent(name))
 
-    updateStore.onDidChange(async state => {
-      const status = state.status
-
-      if (
-        !(__RELEASE_CHANNEL__ === 'development') &&
-        status === UpdateStatus.UpdateReady
-      ) {
-        this.props.dispatcher.setUpdateBannerVisibility(true)
-      }
-
-      if (
-        status !== UpdateStatus.UpdateReady &&
-        (await updateStore.isUpdateShowcase())
-      ) {
-        this.props.dispatcher.setUpdateShowCaseVisibility(true)
-      }
-    })
-
-    updateStore.onError(error => {
-      log.error(`Error checking for updates`, error)
-
-      // It is possible to obtain an error with no message. This was found to be
-      // the case on a windows instance where there was not space on the hard
-      // drive to download the installer. In this case, we want to override the
-      // error message so the user is not given a blank dialog.
-      const hasErrorMsg = error.message.trim().length > 0
-      this.props.dispatcher.postError(
-        hasErrorMsg ? error : new Error('Checking for updates failed.')
-      )
-    })
-
     ipcRenderer.on('launch-timing-stats', (_, stats) => {
       console.info(`App ready time: ${stats.mainReadyTime}ms`)
       console.info(`Load time: ${stats.loadTime}ms`)
@@ -327,20 +256,6 @@ export class App extends React.Component<IAppProps, IAppState> {
     setInterval(() => this.props.dispatcher.reportStats(), SendStatsInterval)
 
     this.props.dispatcher.installGlobalLFSFilters(false)
-
-    // We only want to automatically check for updates on beta and prod
-    if (
-      __RELEASE_CHANNEL__ !== 'development' &&
-      __RELEASE_CHANNEL__ !== 'test'
-    ) {
-      setInterval(() => this.checkForUpdates(true), UpdateCheckInterval)
-      this.checkForUpdates(true)
-    } else if (await updateStore.isUpdateShowcase()) {
-      // The only purpose of this call is so we can see the showcase on dev/test
-      // env. Prod and beta environment will trigger this during automatic check
-      // for updates.
-      this.props.dispatcher.setUpdateShowCaseVisibility(true)
-    }
 
     log.info(`launching: ${getVersion()} (${getOS()})`)
     log.info(`execPath: '${process.execPath}'`)
@@ -636,17 +551,6 @@ export class App extends React.Component<IAppProps, IAppState> {
   private async goToCommitMessage() {
     await this.showChanges()
     this.props.dispatcher.setCommitMessageFocus(true)
-  }
-
-  private checkForUpdates(
-    inBackground: boolean,
-    skipGuidCheck: boolean = false
-  ) {
-    if (__LINUX__ || __RELEASE_CHANNEL__ === 'development') {
-      return
-    }
-
-    updateStore.checkForUpdates(inBackground, skipGuidCheck)
   }
 
   private getDotComAccount(): Account | null {
@@ -1394,9 +1298,6 @@ export class App extends React.Component<IAppProps, IAppState> {
     )
   }
 
-  private onUpdateAvailableDismissed = () =>
-    this.props.dispatcher.setUpdateBannerVisibility(false)
-
   private currentPopupContent(): JSX.Element | null {
     const popup = this.state.currentPopup
 
@@ -1649,8 +1550,6 @@ export class App extends React.Component<IAppProps, IAppState> {
             applicationName={getName()}
             applicationVersion={version}
             applicationArchitecture={process.arch}
-            onCheckForUpdates={this.onCheckForUpdates}
-            onCheckForNonStaggeredUpdates={this.onCheckForNonStaggeredUpdates}
             onShowAcknowledgements={this.showAcknowledgements}
             onShowTermsAndConditions={this.showTermsAndConditions}
           />
@@ -2342,15 +2241,6 @@ export class App extends React.Component<IAppProps, IAppState> {
           />
         )
       }
-      case PopupType.InstallingUpdate: {
-        return (
-          <InstallingUpdate
-            key="installing-update"
-            dispatcher={this.props.dispatcher}
-            onDismissed={onPopupDismissedFn}
-          />
-        )
-      }
       default:
         return assertNever(popup, `Unknown popup type: ${popup}`)
     }
@@ -2448,10 +2338,6 @@ export class App extends React.Component<IAppProps, IAppState> {
 
     this.props.dispatcher.performRetry(retryAction)
   }
-
-  private onCheckForUpdates = () => this.checkForUpdates(false)
-  private onCheckForNonStaggeredUpdates = () =>
-    this.checkForUpdates(false, true)
 
   private showAcknowledgements = () => {
     this.props.dispatcher.showPopup({ type: PopupType.Acknowledgements })
@@ -2918,11 +2804,6 @@ export class App extends React.Component<IAppProps, IAppState> {
         this.props.dispatcher,
         this.onBannerDismissed
       )
-    } else if (
-      this.state.isUpdateAvailableBannerVisible ||
-      this.state.isUpdateShowcaseVisible
-    ) {
-      banner = this.renderUpdateBanner()
     }
     return (
       <TransitionGroup>
@@ -2935,21 +2816,6 @@ export class App extends React.Component<IAppProps, IAppState> {
     )
   }
 
-  private renderUpdateBanner() {
-    return (
-      <UpdateAvailable
-        dispatcher={this.props.dispatcher}
-        newReleases={updateStore.state.newReleases}
-        isX64ToARM64ImmediateAutoUpdate={
-          updateStore.state.isX64ToARM64ImmediateAutoUpdate
-        }
-        onDismissed={this.onUpdateAvailableDismissed}
-        isUpdateShowcaseVisible={this.state.isUpdateShowcaseVisible}
-        emoji={this.state.emoji}
-        key={'update-available'}
-      />
-    )
-  }
 
   private onBannerDismissed = () => {
     this.props.dispatcher.clearBanner()

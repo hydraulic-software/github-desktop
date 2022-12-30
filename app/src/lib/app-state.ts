@@ -179,12 +179,6 @@ export interface IAppState {
    */
   readonly highlightAccessKeys: boolean
 
-  /** Whether we should show the update banner */
-  readonly isUpdateAvailableBannerVisible: boolean
-
-  /** Whether there is an update to showcase */
-  readonly isUpdateShowcaseVisible: boolean
-
   /** Whether we should ask the user to move the app to /Applications */
   readonly askToMoveToApplicationsFolderSetting: boolean
 

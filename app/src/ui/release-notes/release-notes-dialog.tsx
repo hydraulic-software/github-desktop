@@ -1,12 +1,10 @@
 import * as React from 'react'
 import { ReleaseNote, ReleaseSummary } from '../../models/release-notes'
-import { updateStore } from '../lib/update-store'
 import { LinkButton } from '../lib/link-button'
 import { Dialog, DialogContent, DialogFooter } from '../dialog'
 import { RichText } from '../lib/rich-text'
 import { shell } from '../../lib/app-shell'
 import { ReleaseNotesUri } from '../lib/releases'
-import { OkCancelButtonGroup } from '../dialog/ok-cancel-button-group'
 import { DesktopFakeRepository } from '../../lib/desktop-fake-repository'
 import {
   ReleaseNoteHeaderLeftUri,
@@ -126,32 +124,6 @@ export class ReleaseNotes extends React.Component<IReleaseNotesProps, {}> {
     )
   }
 
-  private onDismissed = (event: React.MouseEvent<HTMLButtonElement>) => {
-    event.preventDefault()
-    this.props.onDismissed()
-  }
-
-  private renderButtons = () => {
-    const latestVersion = this.props.newReleases[0].latestVersion
-    if (latestVersion === __APP_VERSION__) {
-      return (
-        <Button type="submit" onClick={this.onDismissed}>
-          Close
-        </Button>
-      )
-    }
-
-    return (
-      <OkCancelButtonGroup
-        destructive={true}
-        okButtonText={
-          __DARWIN__ ? 'Install and Restart' : 'Install and restart'
-        }
-        cancelButtonText="Close"
-      />
-    )
-  }
-
   public render() {
     const release = this.getDisplayRelease()
 
@@ -190,7 +162,6 @@ export class ReleaseNotes extends React.Component<IReleaseNotesProps, {}> {
       <Dialog
         id="release-notes"
         onDismissed={this.props.onDismissed}
-        onSubmit={this.updateNow}
         title={dialogHeader}
       >
         <DialogContent>
@@ -201,14 +172,12 @@ export class ReleaseNotes extends React.Component<IReleaseNotesProps, {}> {
           <LinkButton onClick={this.showAllReleaseNotes}>
             View all release notes
           </LinkButton>
-          {this.renderButtons()}
+          <Button type="submit" onClick={this.props.onDismissed}>
+            Close
+          </Button>
         </DialogFooter>
       </Dialog>
     )
-  }
-
-  private updateNow = () => {
-    updateStore.quitAndInstallUpdate()
   }
 
   private showAllReleaseNotes = () => {
