@@ -53,11 +53,6 @@ These packages are code-signed but you can create self-signed projects if you wa
 
 ## Comparison to other tools
 
-You can compare the config against the code needed to use other Electron packaging tools by reading the [script/build.ts] and [script/package.ts] files.
-The `packageApp()` function in `build.ts` and everything reachable from it could be deleted, along with the whole of `package.ts`. You could
-also delete all the code that sets up and instantiates the update manager, because Conveyor doesn't require you to do anything to initialize
-the update system.
-
 There are some feature differences vs apps packaged using Electron Forge/Squirrel. On Windows:
 
 * Your app will update itself in the background even when not in use, using the same background transfer service Windows Update
@@ -69,6 +64,9 @@ There are some feature differences vs apps packaged using Electron Forge/Squirre
 * Fractional rollouts aren't currently supported. You can have a beta channel though just by creating two different sites.
 
 On macOS the [Sparkle 2 framework](https://sparkle-project.org/) is used instead of Squirrel.Mac.
+
+Because Sparkle, Windows and Conveyor provide update UI the equivalent code in the app can be deleted, along with the code to drive
+Electron Packager.
 
 ## License
 

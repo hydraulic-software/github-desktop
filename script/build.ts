@@ -3,13 +3,6 @@
 
 import * as path from 'path'
 import * as cp from 'child_process'
-import * as os from 'os'
-import packager, {
-  OfficialArch,
-  OsxNotarizeOptions,
-  OsxSignOptions,
-  Options,
-} from 'electron-packager'
 import frontMatter from 'front-matter'
 import { externals } from '../app/webpack.common'
 
@@ -28,20 +21,16 @@ export interface ILicense {
 }
 
 import {
-  getBundleID,
-  getCompanyName,
   getProductName,
 } from '../app/package-info'
 
 import {
   getChannel,
   getDistRoot,
-  getExecutableName,
   isPublishable,
-  getIconFileName,
   getDistArchitecture,
 } from './dist-info'
-import { isCircleCI, isGitHubActions } from './build-platforms'
+import { isGitHubActions } from './build-platforms'
 
 import { updateLicenseDump } from './licenses/update-license-dump'
 import { verifyInjectedSassVariables } from './validate-sass/validate-all'
@@ -60,9 +49,6 @@ const isPublishableBuild = isPublishable()
 const isDevelopmentBuild = getChannel() === 'development'
 
 const projectRoot = path.join(__dirname, '..')
-const entitlementsSuffix = isDevelopmentBuild ? '-dev' : ''
-const entitlementsPath = `${projectRoot}/script/entitlements${entitlementsSuffix}.plist`
-const extendInfoPath = `${projectRoot}/script/info.plist`
 const outRoot = path.join(projectRoot, 'out')
 
 console.log(`Building for ${getChannel()}…`)
@@ -89,7 +75,7 @@ if (isGitHubActions() && process.platform === 'darwin' && isPublishableBuild) {
   cp.execSync(path.join(__dirname, 'setup-macos-keychain'))
 }
 
-const outRootPopulated = verifyInjectedSassVariables(outRoot)
+verifyInjectedSassVariables(outRoot)
   .catch(err => {
     console.error(
       'Error verifying the Sass variables in the rendered app. This is fatal for a published build.'
@@ -112,142 +98,6 @@ const outRootPopulated = verifyInjectedSassVariables(outRoot)
       }
     })
   })
-
-if (process.env.SKIP_ELECTRON_PACKAGER === undefined) {
-  outRootPopulated.then(() => {
-    console.log('Packaging…')
-    return packageApp()
-  })
-      .catch(err => {
-        console.error(err)
-        process.exit(1)
-      })
-      .then(appPaths => {
-        console.log(`Built to ${appPaths}`)
-      })
-}
-
-/**
- * The additional packager options not included in the existing typing.
- *
- * See https://github.com/desktop/desktop/issues/2429 for some history on this.
- */
-interface IPackageAdditionalOptions {
-  readonly protocols: ReadonlyArray<{
-    readonly name: string
-    readonly schemes: ReadonlyArray<string>
-  }>
-  readonly osxSign: OsxSignOptions & {
-    readonly hardenedRuntime?: boolean
-  }
-}
-
-function packageApp() {
-  // not sure if this is needed anywhere, so I'm just going to inline it here
-  // for now and see what the future brings...
-  const toPackagePlatform = (platform: NodeJS.Platform) => {
-    if (platform === 'win32' || platform === 'darwin' || platform === 'linux') {
-      return platform
-    }
-    throw new Error(
-      `Unable to convert to platform for electron-packager: '${process.platform}`
-    )
-  }
-
-  const toPackageArch = (targetArch: string | undefined): OfficialArch => {
-    if (targetArch === undefined) {
-      targetArch = os.arch()
-    }
-
-    if (targetArch === 'arm64' || targetArch === 'x64') {
-      return targetArch
-    }
-
-    throw new Error(
-      `Building Desktop for architecture '${targetArch}' is not supported`
-    )
-  }
-
-  // get notarization deets, unless we're not going to publish this
-  const notarizationCredentials = isPublishableBuild
-    ? getNotarizationCredentials()
-    : undefined
-  if (
-    isPublishableBuild &&
-    (isCircleCI() || isGitHubActions()) &&
-    process.platform === 'darwin' &&
-    notarizationCredentials === undefined
-  ) {
-    // we can't publish a mac build without these
-    throw new Error(
-      'Unable to retreive appleId and/or appleIdPassword to notarize macOS build'
-    )
-  }
-
-  const options: Options & IPackageAdditionalOptions = {
-    name: getExecutableName(),
-    platform: toPackagePlatform(process.platform),
-    arch: toPackageArch(process.env.TARGET_ARCH),
-    asar: false, // TODO: Probably wanna enable this down the road.
-    out: getDistRoot(),
-    icon: path.join(projectRoot, 'app', 'static', 'logos', getIconFileName()),
-    dir: outRoot,
-    overwrite: true,
-    tmpdir: false,
-    derefSymlinks: false,
-    prune: false, // We'll prune them ourselves below.
-    ignore: [
-      new RegExp('/node_modules/electron($|/)'),
-      new RegExp('/node_modules/electron-packager($|/)'),
-      new RegExp('/\\.git($|/)'),
-      new RegExp('/node_modules/\\.bin($|/)'),
-    ],
-    appCopyright: 'Copyright © 2017 GitHub, Inc.',
-
-    // macOS
-    appBundleId: getBundleID(),
-    appCategoryType: 'public.app-category.developer-tools',
-    darwinDarkModeSupport: true,
-    osxSign: {
-      hardenedRuntime: true,
-      entitlements: entitlementsPath,
-      'entitlements-inherit': entitlementsPath,
-      type: isPublishableBuild ? 'distribution' : 'development',
-      // For development, we will use '-' as the identifier so that codesign
-      // will sign the app to run locally. We need to disable 'identity-validation'
-      // or otherwise it will replace '-' with one of the regular codesigning
-      // identities in our system.
-      identity: isDevelopmentBuild ? '-' : undefined,
-      'identity-validation': !isDevelopmentBuild,
-      'gatekeeper-assess': !isDevelopmentBuild,
-    },
-    osxNotarize: notarizationCredentials,
-    protocols: [
-      {
-        name: getBundleID(),
-        schemes: [
-          !isDevelopmentBuild
-            ? 'x-github-desktop-auth'
-            : 'x-github-desktop-dev-auth',
-          'x-github-client',
-          'github-mac',
-        ],
-      },
-    ],
-    extendInfo: extendInfoPath,
-
-    // Windows
-    win32metadata: {
-      CompanyName: getCompanyName(),
-      FileDescription: '',
-      OriginalFilename: '',
-      ProductName: getProductName(),
-      InternalName: getProductName(),
-    },
-  }
-
-  return packager(options)
-}
 
 function removeAndCopy(source: string, destination: string) {
   rmSync(destination, { recursive: true, force: true })
@@ -449,16 +299,4 @@ ${licenseText}`
 
   // sweep up the choosealicense directory as the important bits have been bundled in the app
   rmSync(chooseALicense, { recursive: true, force: true })
-}
-
-function getNotarizationCredentials(): OsxNotarizeOptions | undefined {
-  const appleId = process.env.APPLE_ID
-  const appleIdPassword = process.env.APPLE_ID_PASSWORD
-  if (appleId === undefined || appleIdPassword === undefined) {
-    return undefined
-  }
-  return {
-    appleId,
-    appleIdPassword,
-  }
 }

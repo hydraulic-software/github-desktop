@@ -158,45 +158,8 @@ export const getCurrentWindowZoomFactor = invokeProxy(
 /** Tell the main process to set the current window's zoom factor */
 export const setWindowZoomFactor = sendProxy('set-window-zoom-factor', 1)
 
-/** Tell the main process to check for app updates */
-export const checkForUpdates = invokeProxy('check-for-updates', 1)
-
-/** Tell the main process to quit the app and install updates */
-export const quitAndInstallUpdate = sendProxy('quit-and-install-updates', 0)
-
 /** Tell the main process to quit the app */
 export const quitApp = sendProxy('quit-app', 0)
-
-/** Subscribes to auto updater error events originating from the main process */
-export function onAutoUpdaterError(
-  errorHandler: (evt: Electron.IpcRendererEvent, error: Error) => void
-) {
-  ipcRenderer.on('auto-updater-error', errorHandler)
-}
-
-/** Subscribes to auto updater checking for update events originating from the
- * main process */
-export function onAutoUpdaterCheckingForUpdate(eventHandler: () => void) {
-  ipcRenderer.on('auto-updater-checking-for-update', eventHandler)
-}
-
-/** Subscribes to auto updater update available events originating from the
- * main process */
-export function onAutoUpdaterUpdateAvailable(eventHandler: () => void) {
-  ipcRenderer.on('auto-updater-update-available', eventHandler)
-}
-
-/** Subscribes to auto updater update not available events originating from the
- * main process */
-export function onAutoUpdaterUpdateNotAvailable(eventHandler: () => void) {
-  ipcRenderer.on('auto-updater-update-not-available', eventHandler)
-}
-
-/** Subscribes to auto updater update downloaded events originating from the
- * main process */
-export function onAutoUpdaterUpdateDownloaded(eventHandler: () => void) {
-  ipcRenderer.on('auto-updater-update-downloaded', eventHandler)
-}
 
 /** Subscribes to the native theme updated event originating from the main process */
 export function onNativeThemeUpdated(eventHandler: () => void) {

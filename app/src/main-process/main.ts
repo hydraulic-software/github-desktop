@@ -16,7 +16,6 @@ import { AppWindow } from './app-window'
 import { buildDefaultMenu, getAllMenuItems } from './menu'
 import { shellNeedsPatching, updateEnvironmentForProcess } from '../lib/shell'
 import { parseAppURL } from '../lib/parse-app-url'
-import { handleSquirrelEvent } from './squirrel-updater'
 import { fatalError } from '../lib/fatal-error'
 
 import { log as writeLog } from './log'
@@ -128,25 +127,13 @@ process.on('uncaughtException', (error: Error) => {
   handleUncaughtException(error)
 })
 
-let handlingSquirrelEvent = false
 if (__WIN32__ && process.argv.length > 1) {
-  const arg = process.argv[1]
-
-  const promise = handleSquirrelEvent(arg)
-  if (promise) {
-    handlingSquirrelEvent = true
-    promise
-      .catch(e => {
-        log.error(`Failed handling Squirrel event: ${arg}`, e)
-      })
-      .then(() => {
-        app.quit()
-      })
-  } else {
-    handlePossibleProtocolLauncherArgs(process.argv)
-  }
+  handlePossibleProtocolLauncherArgs(process.argv)
 }
 
+// TODO(low): Support the CLI launcher.
+
+// TODO(low): Fix notifications by adding appx manifest data: https://learn.microsoft.com/en-us/windows/apps/design/shell/tiles-and-notifications/send-local-toast-desktop-cpp-wrl#packaged
 initializeDesktopNotifications()
 
 function handleAppURL(url: string) {
@@ -161,33 +148,28 @@ function handleAppURL(url: string) {
 }
 
 let isDuplicateInstance = false
-// If we're handling a Squirrel event we don't want to enforce single instance.
-// We want to let the updated instance launch and do its work. It will then quit
-// once it's done.
-if (!handlingSquirrelEvent) {
-  const gotSingleInstanceLock = app.requestSingleInstanceLock()
-  isDuplicateInstance = !gotSingleInstanceLock
+const gotSingleInstanceLock = app.requestSingleInstanceLock()
+isDuplicateInstance = !gotSingleInstanceLock
 
-  app.on('second-instance', (event, args, workingDirectory) => {
-    // Someone tried to run a second instance, we should focus our window.
-    if (mainWindow) {
-      if (mainWindow.isMinimized()) {
-        mainWindow.restore()
-      }
-
-      if (!mainWindow.isVisible()) {
-        mainWindow.show()
-      }
-
-      mainWindow.focus()
+app.on('second-instance', (event, args, workingDirectory) => {
+  // Someone tried to run a second instance, we should focus our window.
+  if (mainWindow) {
+    if (mainWindow.isMinimized()) {
+      mainWindow.restore()
     }
 
-    handlePossibleProtocolLauncherArgs(args)
-  })
+    if (!mainWindow.isVisible()) {
+      mainWindow.show()
+    }
 
-  if (isDuplicateInstance) {
-    app.quit()
+    mainWindow.focus()
   }
+
+  handlePossibleProtocolLauncherArgs(args)
+})
+
+if (isDuplicateInstance) {
+  app.quit()
 }
 
 if (shellNeedsPatching(process)) {
@@ -280,7 +262,7 @@ if (process.env.GITHUB_DESKTOP_DISABLE_HARDWARE_ACCELERATION) {
 }
 
 app.on('ready', () => {
-  if (isDuplicateInstance || handlingSquirrelEvent) {
+  if (isDuplicateInstance) {
     return
   }
 

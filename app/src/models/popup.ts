@@ -88,7 +88,6 @@ export enum PopupType {
   UnreachableCommits = 'UnreachableCommits',
   StartPullRequest = 'StartPullRequest',
   Error = 'Error',
-  InstallingUpdate = 'InstallingUpdate',
 }
 
 interface IBasePopup {
@@ -384,9 +383,6 @@ export type PopupDetail =
   | {
       type: PopupType.Error
       error: Error
-    }
-  | {
-      type: PopupType.InstallingUpdate
     }
 
 export type Popup = IBasePopup & PopupDetail
