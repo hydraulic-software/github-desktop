@@ -398,13 +398,6 @@ export class App extends React.Component<IAppProps, IAppState> {
   }
 
   private testShowNotification() {
-    if (
-      __RELEASE_CHANNEL__ !== 'development' &&
-      __RELEASE_CHANNEL__ !== 'test'
-    ) {
-      return
-    }
-
     showNotification({
       title: 'Test notification',
       body: 'Click here! This is a test notification',

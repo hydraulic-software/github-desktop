@@ -103,10 +103,12 @@ if (__DARWIN__) {
   possibleProtocols.add('github-windows')
 }
 
-// On Windows, in order to get notifications properly working for dev builds,
-// we'll want to set the right App User Model ID from production builds.
+// We have to inform Electron of our package ID (== "app user model ID") as otherwise notifications won't work correctly.
+// Package/AUMIDs can be discovered with the Get-StartApps powershell cmdlet. When packaged as MSIX using Conveyor the
+// package ID is the name of the app combined with a text-encoded hash of the X.509 signing certificate subject name.
+// It is therefore stable as long as the package is always signed with the same identity (doesn't have to be the same key).
 if (__WIN32__) {
-  app.setAppUserModelId('com.squirrel.GitHubDesktop.GitHubDesktop')
+  app.setAppUserModelId('GithubDesktop_49jahnq5qzr1m!GithubDesktop')
 }
 
 app.on('window-all-closed', () => {
@@ -131,7 +133,6 @@ if (__WIN32__ && process.argv.length > 1) {
 
 // TODO(low): Support the CLI launcher.
 
-// TODO(low): Fix notifications by adding appx manifest data: https://learn.microsoft.com/en-us/windows/apps/design/shell/tiles-and-notifications/send-local-toast-desktop-cpp-wrl#packaged
 initializeDesktopNotifications()
 
 function handleAppURL(url: string) {

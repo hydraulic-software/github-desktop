@@ -570,7 +570,7 @@ export function buildDefaultMenu({
     )
   }
 
-  if (__RELEASE_CHANNEL__ === 'development' || __RELEASE_CHANNEL__ === 'test') {
+  if (true || __RELEASE_CHANNEL__ === 'development' || __RELEASE_CHANNEL__ === 'test') {
     helpItems.push({
       label: 'Show notification',
       click: emit('test-show-notification'),
